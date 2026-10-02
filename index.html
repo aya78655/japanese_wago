@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>和語クイズ</title>
+<style>
+:root{
+  --bg:#f7f5f0;
+  --card:#ffffff;
+  --ink:#2d2a26;
+  --sub:#6b6560;
+  --accent:#3a6b5c;
+  --accent-soft:#e7efec;
+  --correct:#3a7d3a;
+  --correct-bg:#e6f4e6;
+  --wrong:#b3452e;
+  --wrong-bg:#fbe9e5;
+  --border:#e3ddd2;
+  --mark:#fdf1c7;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  line-height:1.7;
+  padding-bottom:60px;
+  min-height:100vh;
+}
+header{text-align:center;padding:36px 16px 12px;}
+header h1{margin:0 0 8px;font-size:1.6rem;}
+header p{margin:0;color:var(--sub);font-size:0.95rem;}
+.progress-wrap{
+  position:sticky;top:0;z-index:10;
+  background:rgba(247,245,240,0.92);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border);
+  padding:12px 16px;
+}
+.progress-inner{
+  max-width:720px;margin:0 auto;
+  display:flex;align-items:center;gap:14px;
+  font-size:0.85rem;color:var(--sub);
+}
+.progress-bar-track{flex:1;height:6px;background:var(--accent-soft);border-radius:999px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease;}
+.progress-inner strong{color:var(--accent);white-space:nowrap;}
+main{max-width:720px;margin:0 auto;padding:24px 16px 0;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 22px 20px;}
+.q-body{display:flex;gap:18px;align-items:flex-start;}
+.q-image-wrap{
+  flex:0 0 220px;width:220px;height:150px;
+  border-radius:12px;overflow:hidden;
+  background:var(--accent-soft);border:1px solid var(--border);
+}
+.q-image{width:100%;height:100%;object-fit:cover;display:block;}
+.q-image-fallback{width:100%;height:100%;display:none;align-items:center;justify-content:center;font-size:2.6rem;}
+.q-content{flex:1;min-width:0;}
+@media (max-width:480px){
+  .q-body{flex-direction:column;}
+  .q-image-wrap{width:100%;height:220px;}
+}
+.q-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.q-num{font-size:0.8rem;color:var(--sub);background:var(--accent-soft);border-radius:999px;padding:2px 10px;}
+.q-term{font-size:1.35rem;font-weight:700;}
+.q-emoji{font-size:1.4rem;}
+.q-reading{font-size:0.85rem;color:var(--sub);}
+.q-example{
+  font-size:1rem;line-height:1.8;
+  border-left:4px solid var(--accent);
+  padding:6px 12px;margin:0 0 16px;
+  background:#faf9f6;border-radius:0 8px 8px 0;
+}
+.q-example .ex-label{display:block;font-size:0.75rem;color:var(--sub);}
+.q-example mark{background:var(--mark);color:inherit;font-weight:700;padding:0 2px;border-radius:3px;}
+.q-example .blank{
+  display:inline-block;min-width:4.5em;border-bottom:2px solid var(--accent);
+  text-align:center;color:var(--accent);font-weight:700;margin:0 2px;
+}
+.q-meaning-prompt{
+  font-size:1.05rem;line-height:1.8;
+  background:var(--accent-soft);border-radius:10px;
+  padding:14px 16px;margin:2px 0 12px;
+}
+.mode-switch{max-width:720px;margin:14px auto 0;padding:0 16px;display:flex;gap:8px;}
+.mode-btn{
+  flex:1;padding:10px 8px;border-radius:10px;
+  border:1.5px solid var(--border);background:#fff;color:var(--sub);
+  font-size:0.88rem;cursor:pointer;
+  transition:background .15s, border-color .15s, color .15s;
+}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.choices{display:flex;flex-direction:column;gap:10px;}
+button.choice{
+  text-align:left;padding:13px 14px;
+  border:1.5px solid var(--border);border-radius:10px;
+  background:#fff;font-size:1rem;color:var(--ink);
+  cursor:pointer;transition:background .15s, border-color .15s;
+  font-family:inherit;
+}
+button.choice:hover:not(:disabled){border-color:var(--accent);}
+button.choice .label{font-weight:700;margin-right:8px;color:var(--accent);}
+button.choice.correct{background:var(--correct-bg);border-color:var(--correct);color:var(--correct);}
+button.choice.wrong{background:var(--wrong-bg);border-color:var(--wrong);color:var(--wrong);}
+.feedback{margin-top:16px;font-size:1rem;font-weight:700;min-height:1.4em;}
+.feedback.ok{color:var(--correct);}
+.feedback.no{color:var(--wrong);}
+.explain{
+  margin-top:8px;font-size:0.9rem;color:var(--sub);
+  background:#faf9f6;border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;display:none;
+}
+.explain.show{display:block;}
+.explain b{color:var(--ink);}
+.next-wrap{margin-top:18px;text-align:right;}
+.next-btn{
+  background:var(--accent);color:#fff;border:none;
+  padding:10px 24px;border-radius:999px;font-size:0.95rem;cursor:pointer;
+  opacity:0;transform:translateY(4px);pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+  font-family:inherit;
+}
+.next-btn.show{opacity:1;transform:translateY(0);pointer-events:auto;}
+.next-btn:hover{opacity:0.9;}
+.result-card{text-align:center;padding:40px 22px;}
+.result-score{font-size:3rem;font-weight:800;color:var(--accent);margin:10px 0 4px;}
+.result-score span{font-size:1.3rem;color:var(--sub);font-weight:600;}
+.result-msg{color:var(--sub);margin-bottom:22px;}
+.missed{text-align:left;max-width:520px;margin:0 auto 24px;font-size:0.9rem;}
+.missed h3{font-size:0.9rem;color:var(--sub);margin:0 0 6px;font-weight:600;}
+.missed ul{margin:0;padding:0;list-style:none;border-top:1px solid var(--border);}
+.missed li{padding:8px 4px;border-bottom:1px solid var(--border);}
+.missed li b{color:var(--wrong);margin-right:6px;}
+.result-actions{display:flex;flex-direction:column;gap:10px;align-items:center;}
+.result-actions button{
+  border:none;padding:12px 28px;border-radius:999px;
+  font-size:0.95rem;cursor:pointer;min-width:240px;font-family:inherit;
+}
+.result-actions button:hover{opacity:0.9;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:var(--accent-soft);color:var(--accent);}
+footer{text-align:center;color:var(--sub);font-size:0.8rem;padding:30px 16px 10px;}
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span id="progress-label">1問目 / 46問中</span>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <strong id="score-label">正解 0</strong>
+  </div>
+</div>
+
+<header>
+  <h1>和語クイズ</h1>
+  <p id="instruction">例文の中での和語の意味を選んでください。1問ずつ答え合わせをしながら進みます。</p>
+</header>
+
+<div class="mode-switch" id="mode-switch">
+  <button class="mode-btn active" data-mode="term">和語 → 意味を選ぶ</button>
+  <button class="mode-btn" data-mode="meaning">意味 → 和語を選ぶ</button>
+</div>
+
+<main id="quiz"></main>
+
+<footer id="footer">全46問 &middot; 和語の意味クイズ</footer>
+
+<script>
+/*
+  データ形式
+  term   : 和語
+  kanji  : 漢字表記（参考）
+  emoji  : 画像がないときに表示する絵文字
+  meaning: 意味
+  example: 用例。[ ] で囲んだ部分が和語（意味→和語モードでは空欄になる）
+  画像を使う場合は images/01.png, images/02.jpg … のように問題番号で置いてください。
+*/
+const QUESTIONS = [
+  { term:"あいづち", kanji:"相槌", emoji:"🗣️", meaning:"相手の話にうなずいてうまく調子を合わせること。", example:"[あいづち]を打つ" },
+
+  { term:"あしらう", kanji:"", emoji:"🙋", meaning:"応対する。", example:"面倒な客をうまく[あしらう]" },
+  { term:"あしらう", kanji:"", emoji:"😤", meaning:"相手を軽んじた扱いをする。", example:"鼻で[あしらう]" },
+  { term:"あしらう", kanji:"", emoji:"💐", meaning:"取り合わせる。配合する。", example:"飾りに花を[あしらう]" },
+
+  { term:"ありふれた", kanji:"有り触れた", emoji:"🏘️", meaning:"どこにでもありそうな。", example:"[ありふれた]話だ" },
+
+  { term:"いきさつ", kanji:"経緯", emoji:"📜", meaning:"物事のこみいった事情。事件の経過。", example:"過去の[いきさつ]を話す" },
+
+  { term:"いろどる", kanji:"彩る", emoji:"🎨", meaning:"色をつける。", example:"広間の天井を金色に[いろどる]" },
+  { term:"いろどる", kanji:"彩る", emoji:"🌷", meaning:"さまざまな色や物を取り合わせて飾る。", example:"季節の花で食卓を[いろどる]" },
+  { term:"いろどる", kanji:"彩る", emoji:"🎭", meaning:"おもしろみや趣などを付け加える。", example:"私たちの生活を[いろどる]様々な芸術や文化" },
+
+  { term:"うつろ", kanji:"虚ろ", emoji:"🌳", meaning:"内部がからであること。空洞。うろ。からっぽ。", example:"幹の真ん中が[うつろ]になっている老木" },
+  { term:"うつろ", kanji:"虚ろ", emoji:"😶", meaning:"ぼんやりして物事を考える力がない様子。", example:"[うつろ]なまなざし" },
+  { term:"うつろ", kanji:"虚ろ", emoji:"🍂", meaning:"むなしいこと。", example:"謝罪の言葉も今となっては[うつろ]に聞こえる" },
+
+  { term:"えりすぐり", kanji:"選りすぐり", emoji:"🏆", meaning:"よいものの中から、さらに選び抜かれたもの。", example:"[えりすぐり]の作品を集めた展覧会" },
+
+  { term:"おののく", kanji:"戦く", emoji:"😱", meaning:"恐ろしさ・寒さ・興奮などで、体や手足が震える。", example:"恐怖に[おののく]" },
+
+  { term:"おもむき", kanji:"趣", emoji:"⛩️", meaning:"そのものが感じさせる風情。しみじみとした味わい。", example:"古寺の苔むした庭には[おもむき]がある" },
+  { term:"おもむき", kanji:"趣", emoji:"♨️", meaning:"全体から感じられるようす・ありさま。", example:"ひなびた温泉宿といった[おもむき]がある" },
+  { term:"おもむき", kanji:"趣", emoji:"✉️", meaning:"言おうとしていること。趣旨。", example:"ご用の[おもむき]は承知いたしました" },
+
+  { term:"かねて", kanji:"予て", emoji:"⏳", meaning:"以前から。前もって。かねがね。", example:"[かねて]から聞いていたとおり、素晴らしい選手だ" },
+
+  { term:"しぶる", kanji:"渋る", emoji:"📉", meaning:"物事がすらすらと運ばなくなる。", example:"人気商品の売れ行きが[しぶる]" },
+  { term:"しぶる", kanji:"渋る", emoji:"😒", meaning:"気が進まぬようす。嫌がってなかなか実行しない。", example:"客が支払いを[しぶる]" },
+
+  { term:"たくみ", kanji:"匠", emoji:"🔨", meaning:"細工師・大工。手先や道具を使って物を作る職人。", example:"日本の伝統工芸の[たくみ]" },
+  { term:"たくみ", kanji:"巧み", emoji:"🎯", meaning:"手際のよいこと。上手になしとげるさま。", example:"言葉[たくみ]に言い逃れる" },
+
+  { term:"つくろう", kanji:"繕う", emoji:"🪡", meaning:"破れたり壊れたりした箇所を直す。補修する。", example:"上着のほころびを[つくろう]" },
+  { term:"つくろう", kanji:"繕う", emoji:"💇", meaning:"身なりなどをきちんと整える。", example:"乱れた髪を[つくろう]" },
+  { term:"つくろう", kanji:"繕う", emoji:"🎩", meaning:"実際よりもよく見えるよう整え、よそおう。", example:"世間体を[つくろう]" },
+  { term:"つくろう", kanji:"繕う", emoji:"😅", meaning:"ぐあいの悪いことを隠して、その場をとりなす。", example:"嘘がばれないようあわててその場を取り[つくろう]" },
+
+  { term:"つれない", kanji:"", emoji:"🌙", meaning:"思いやりがない。薄情である。冷淡である。", example:"かぐや姫は帝に対しても[つれない]態度であった" },
+
+  { term:"なびく", kanji:"靡く", emoji:"🎏", meaning:"風や水の勢いに従って横にゆらめくように動く。", example:"鯉のぼりが風に[なびく]" },
+  { term:"なびく", kanji:"靡く", emoji:"👑", meaning:"他の意志や権力などに従う。", example:"将軍の威光に[なびく]" },
+
+  { term:"のたうつ", kanji:"", emoji:"😣", meaning:"苦しみもがく。苦痛でころげまわる。", example:"激痛に[のたうつ]" },
+
+  { term:"はりつめる", kanji:"張り詰める", emoji:"🧊", meaning:"十分に張る。一面にびっしり張る。", example:"池に氷が[はりつめる]" },
+  { term:"はりつめる", kanji:"張り詰める", emoji:"📝", meaning:"気持ちを引き締める。緊張する。", example:"試験場の[はりつめ]た空気" },
+
+  { term:"ひややか", kanji:"冷ややか", emoji:"💧", meaning:"つめたく感じられるさま。", example:"[ひややか]なわき水をすくって飲む" },
+  { term:"ひややか", kanji:"冷ややか", emoji:"🥶", meaning:"態度が冷淡であるさま。", example:"[ひややか]なまなざし" },
+  { term:"ひややか", kanji:"冷ややか", emoji:"🎖️", meaning:"落ち着いていて物に動じないさま。冷静なさま。", example:"大佐は、[ひややか]に戦況を見守った" },
+
+  { term:"へだてる", kanji:"隔てる", emoji:"📏", meaning:"離しておく。離す。", example:"互いに一メートル[へだて]て並んでください" },
+  { term:"へだてる", kanji:"隔てる", emoji:"🚪", meaning:"物を間に置く。仕切る。", example:"ついたてでテーブルを[へだてる]" },
+  { term:"へだてる", kanji:"隔てる", emoji:"📅", meaning:"年月がたつ。", example:"三十年の歳月を[へだて]て再会した" },
+  { term:"へだてる", kanji:"隔てる", emoji:"💔", meaning:"関係をうとくする。打ち解けない。", example:"友だちと仲を[へだてる]" },
+
+  { term:"まざまざ", kanji:"", emoji:"👀", meaning:"目の前で見るようなさま。ありあり。", example:"母の笑顔が[まざまざ]と脳裏に浮かぶ" },
+  { term:"まざまざ", kanji:"", emoji:"😓", meaning:"あることを確かなこととして、身にしみて感じるさま。", example:"実力不足を[まざまざ]と思い知らされる" },
+
+  { term:"みすみす", kanji:"", emoji:"🏃", meaning:"実際に見ていたり事情がわかっていたりしながら、ふさわしい対応をしないさま。むざむざと。", example:"[みすみす]目の前のチャンスを見逃す" },
+
+  { term:"もたげる", kanji:"擡げる", emoji:"🐍", meaning:"もちあげる。おこす。", example:"蛇がかま首を[もたげる]" },
+  { term:"もたげる", kanji:"擡げる", emoji:"🤔", meaning:"（それまで目立たなかったものが）表面に出てくる。", example:"疑いが頭を[もたげる]" },
+
+  { term:"よそおう", kanji:"装う", emoji:"👘", meaning:"身なりや外観を整える。美しく飾る。", example:"豪華な着物で美しく[よそおう]" },
+  { term:"よそおう", kanji:"装う", emoji:"😐", meaning:"見せかける。ふりをする。", example:"本心をさとられないよう平静を[よそおう]" }
+];
+
+/* 意味が似ていてまぎらわしい組み合わせ（選択肢に同時に出さない） */
+const CONFLICTS = {
+  "つれない": ["ひややか"],
+  "ひややか": ["つれない"],
+  "つくろう": ["よそおう"],
+  "よそおう": ["つくろう","いろどる"],
+  "いろどる": ["よそおう","あしらう"],
+  "あしらう": ["いろどる"]
+};
+
+const LABELS = ["ア","イ","ウ","エ"];
+const INSTRUCTIONS = {
+  term: "例文の中での和語の意味を選んでください。1問ずつ答え合わせをしながら進みます。",
+  meaning: "意味と例文に合う和語を選んでください。1問ずつ答え合わせをしながら進みます。"
+};
+
+const quizEl = document.getElementById("quiz");
+const progressLabel = document.getElementById("progress-label");
+const progressFill = document.getElementById("progress-fill");
+const scoreLabel = document.getElementById("score-label");
+const instructionEl = document.getElementById("instruction");
+const modeSwitchEl = document.getElementById("mode-switch");
+
+const allIndices = QUESTIONS.map((_, i) => i);
+let mode = "term";
+let activeIndices = shuffle(allIndices);
+let current = 0;
+let score = 0;
+let wrongIndices = [];
+
+document.getElementById("footer").innerHTML = `全${QUESTIONS.length}問 &middot; 和語の意味クイズ`;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function exampleHTML(q, blank){
+  return "「" + q.example.replace(/\[(.+?)\]/g, (_, w) =>
+    blank ? `<span class="blank">？</span>` : `<mark>${w}</mark>`) + "」";
+}
+
+function isConflict(a, b){
+  return (CONFLICTS[a] || []).includes(b);
+}
+
+function resetRun(indices){
+  activeIndices = shuffle(indices);
+  current = 0;
+  score = 0;
+  wrongIndices = [];
+  renderQuestion();
+}
+
+modeSwitchEl.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.mode === mode) return;
+    mode = btn.dataset.mode;
+    modeSwitchEl.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b === btn));
+    instructionEl.textContent = INSTRUCTIONS[mode];
+    resetRun(allIndices);
+  });
+});
+
+function updateProgress(){
+  const total = activeIndices.length;
+  const shown = Math.min(current + 1, total);
+  progressLabel.textContent = current < total ? `${shown}問目 / ${total}問中` : `終了 / ${total}問中`;
+  progressFill.style.width = (current / total * 100) + "%";
+  scoreLabel.textContent = `正解 ${score}`;
+}
+
+/* 和語→意味：正しい意味＋同じ語の別の意味（最大2つ）＋他の語の意味 */
+function buildMeaningOptions(idx){
+  const q = QUESTIONS[idx];
+  const siblings = shuffle(allIndices.filter(i => i !== idx && QUESTIONS[i].term === q.term)).slice(0, 2);
+  const others = shuffle(allIndices.filter(i =>
+    QUESTIONS[i].term !== q.term && !isConflict(q.term, QUESTIONS[i].term)
+  ));
+  const picked = [...siblings];
+  const usedTerms = new Set();
+  for (const i of others) {
+    if (picked.length >= 3) break;
+    const t = QUESTIONS[i].term;
+    if (usedTerms.has(t)) continue;
+    if ([...usedTerms].some(u => isConflict(u, t))) continue;
+    usedTerms.add(t);
+    picked.push(i);
+  }
+  return shuffle([idx, ...picked]).map(i => ({ text: QUESTIONS[i].meaning, correct: i === idx }));
+}
+
+/* 意味→和語：正しい和語＋ほかの和語3つ（まぎらわしいものは除く） */
+function buildTermOptions(idx){
+  const q = QUESTIONS[idx];
+  const terms = [...new Set(QUESTIONS.map(x => x.term))];
+  const pool = shuffle(terms.filter(t => t !== q.term && !isConflict(q.term, t)));
+  const picked = [];
+  for (const t of pool) {
+    if (picked.length >= 3) break;
+    if (picked.some(p => isConflict(p, t))) continue;
+    picked.push(t);
+  }
+  return shuffle([q.term, ...picked]).map(t => ({ text: t, correct: t === q.term }));
+}
+
+function renderQuestion(){
+  updateProgress();
+  const idx = activeIndices[current];
+  const q = QUESTIONS[idx];
+  quizEl.innerHTML = "";
+
+  const card = document.createElement("div");
+  card.className = "card";
+  const body = document.createElement("div");
+  body.className = "q-body";
+
+  // 画像（images/01.png など）→ なければ絵文字
+  const imageWrap = document.createElement("div");
+  imageWrap.className = "q-image-wrap";
+  const img = document.createElement("img");
+  img.className = "q-image";
+  img.alt = q.term + "のイラスト";
+  const fallback = document.createElement("div");
+  fallback.className = "q-image-fallback";
+  fallback.textContent = q.emoji;
+  const num = String(idx + 1).padStart(2, "0");
+  const exts = ["png", "jpg", "jpeg", "webp"];
+  let extAttempt = 0;
+  function tryLoadImage(){
+    if (extAttempt >= exts.length) {
+      img.style.display = "none";
+      fallback.style.display = "flex";
+      return;
+    }
+    img.src = `images/${num}.${exts[extAttempt]}`;
+    extAttempt++;
+  }
+  img.addEventListener("error", tryLoadImage);
+  tryLoadImage();
+  imageWrap.appendChild(img);
+  imageWrap.appendChild(fallback);
+  body.appendChild(imageWrap);
+
+  const content = document.createElement("div");
+  content.className = "q-content";
+
+  const head = document.createElement("div");
+  head.className = "q-head";
+  if (mode === "term") {
+    head.innerHTML = `
+      <span class="q-num">第${idx + 1}問</span>
+      <span class="q-term">${q.term}</span>
+      <span class="q-emoji">${q.emoji}</span>
+      ${q.kanji ? `<span class="q-reading">（${q.kanji}）</span>` : ""}
+    `;
+  } else {
+    head.innerHTML = `
+      <span class="q-num">第${idx + 1}問</span>
+      <span class="q-emoji">${q.emoji}</span>
+    `;
+  }
+  content.appendChild(head);
+
+  if (mode === "meaning") {
+    const meaningPrompt = document.createElement("div");
+    meaningPrompt.className = "q-meaning-prompt";
+    meaningPrompt.textContent = q.meaning;
+    content.appendChild(meaningPrompt);
+  }
+
+  const ex = document.createElement("div");
+  ex.className = "q-example";
+  ex.innerHTML = `<span class="ex-label">用例</span>${exampleHTML(q, mode === "meaning")}`;
+  content.appendChild(ex);
+
+  const choicesWrap = document.createElement("div");
+  choicesWrap.className = "choices";
+  const feedback = document.createElement("div");
+  feedback.className = "feedback";
+  const explain = document.createElement("div");
+  explain.className = "explain";
+  explain.innerHTML = `<b>${q.term}</b>${q.kanji ? `（${q.kanji}）` : ""}：${q.meaning}<br>${exampleHTML(q, false)}`;
+
+  const nextWrap = document.createElement("div");
+  nextWrap.className = "next-wrap";
+  const nextBtn = document.createElement("button");
+  nextBtn.className = "next-btn";
+  nextBtn.textContent = current === activeIndices.length - 1 ? "結果を見る" : "次の問題へ";
+  nextBtn.addEventListener("click", () => {
+    current++;
+    if (current < activeIndices.length) renderQuestion();
+    else renderResult();
+  });
+  nextWrap.appendChild(nextBtn);
+
+  const optionsData = mode === "term" ? buildMeaningOptions(idx) : buildTermOptions(idx);
+  const correctPosition = optionsData.findIndex(o => o.correct);
+
+  optionsData.forEach((opt, ci) => {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.innerHTML = `<span class="label">${LABELS[ci]}</span>${opt.text}`;
+    btn.addEventListener("click", () => {
+      if (btn.dataset.locked) return;
+      const buttons = choicesWrap.querySelectorAll("button.choice");
+      buttons.forEach(b => b.dataset.locked = "1");
+      if (ci === correctPosition) {
+        btn.classList.add("correct");
+        feedback.textContent = "○ 正解！";
+        feedback.className = "feedback ok";
+        score++;
+      } else {
+        btn.classList.add("wrong");
+        buttons[correctPosition].classList.add("correct");
+        feedback.textContent = "× 不正解";
+        feedback.className = "feedback no";
+        wrongIndices.push(idx);
+      }
+      if (mode === "meaning") ex.innerHTML = `<span class="ex-label">用例</span>${exampleHTML(q, false)}`;
+      explain.classList.add("show");
+      scoreLabel.textContent = `正解 ${score}`;
+      nextBtn.classList.add("show");
+    });
+    choicesWrap.appendChild(btn);
+  });
+
+  content.appendChild(choicesWrap);
+  content.appendChild(feedback);
+  content.appendChild(explain);
+  content.appendChild(nextWrap);
+  body.appendChild(content);
+  card.appendChild(body);
+  quizEl.appendChild(card);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderResult(){
+  const total = activeIndices.length;
+  progressLabel.textContent = `終了 / ${total}問中`;
+  progressFill.style.width = "100%";
+  scoreLabel.textContent = `正解 ${score}`;
+
+  quizEl.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "card result-card";
+
+  const pct = Math.round(score / total * 100);
+  let msg = "";
+  if (pct === 100) msg = "全問正解です！すばらしい！";
+  else if (pct >= 80) msg = "よくできました！";
+  else if (pct >= 50) msg = "もう少し復習してみましょう。";
+  else msg = "もう一度見直してみましょう。";
+
+  card.innerHTML = `
+    <div>結果</div>
+    <div class="result-score">${score}<span> / ${total}</span></div>
+    <div class="result-msg">${msg}</div>
+  `;
+
+  const missedThisRun = wrongIndices.slice();
+
+  if (missedThisRun.length > 0) {
+    const missed = document.createElement("div");
+    missed.className = "missed";
+    missed.innerHTML = `<h3>まちがえた和語</h3><ul>${
+      missedThisRun.map(i => {
+        const q = QUESTIONS[i];
+        return `<li><b>${q.term}</b>${q.meaning}<br><small>${exampleHTML(q, false)}</small></li>`;
+      }).join("")
+    }</ul>`;
+    card.appendChild(missed);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "result-actions";
+
+  if (missedThisRun.length > 0) {
+    const retryWrongBtn = document.createElement("button");
+    retryWrongBtn.className = "btn-primary";
+    retryWrongBtn.textContent = `間違えた問題だけやり直す（${missedThisRun.length}問）`;
+    retryWrongBtn.addEventListener("click", () => resetRun(missedThisRun));
+    actions.appendChild(retryWrongBtn);
+  }
+
+  const retrySameBtn = document.createElement("button");
+  retrySameBtn.className = missedThisRun.length > 0 ? "btn-secondary" : "btn-primary";
+  retrySameBtn.textContent = "同じ問題でもう一度";
+  retrySameBtn.addEventListener("click", () => resetRun(activeIndices));
+  actions.appendChild(retrySameBtn);
+
+  if (activeIndices.length !== allIndices.length) {
+    const allBtn = document.createElement("button");
+    allBtn.className = "btn-secondary";
+    allBtn.textContent = `全${allIndices.length}問に戻る`;
+    allBtn.addEventListener("click", () => resetRun(allIndices));
+    actions.appendChild(allBtn);
+  }
+
+  card.appendChild(actions);
+  quizEl.appendChild(card);
+}
+
+renderQuestion();
+</script>
+</body>
+</html>
