@@ -66,6 +66,7 @@ main{max-width:720px;margin:0 auto;padding:24px 16px 0;}
 .q-num{font-size:0.8rem;color:var(--sub);background:var(--accent-soft);border-radius:999px;padding:2px 10px;}
 .q-term{font-size:1.35rem;font-weight:700;}
 .q-emoji{font-size:1.4rem;}
+.q-sense{font-size:0.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 10px;}
 .q-reading{font-size:0.85rem;color:var(--sub);}
 .q-example{
   font-size:1rem;line-height:1.8;
@@ -316,6 +317,16 @@ const QUESTIONS = [
   { term:"よもや", kanji:"", emoji:"🙅‍♂️", meaning:"万が一にも。いくらなんでも。（その可能性はないという意。）", example:"[よもや]忘れることはあるまい」「[よもや]の展開で敗退する" }
 ];
 
+/* 複数の意味がある和語に「◯つ目の意味」の番号をつける */
+QUESTIONS.forEach((q, i) => {
+  const same = QUESTIONS.filter(x => x.term === q.term);
+  q.senseTotal = same.length;
+  q.senseNo = same.indexOf(q) + 1;
+});
+function senseLabel(q){
+  return q.senseTotal > 1 ? `<span class="q-sense">${q.senseNo}つ目の意味</span>` : "";
+}
+
 /* 意味が似ていてまぎらわしい組み合わせ（選択肢に同時に出さない） */
 const CONFLICTS = {
   "つれない": ["ひややか","うとんじる"],
@@ -494,11 +505,13 @@ function renderQuestion(){
       <span class="q-term">${q.term}</span>
       <span class="q-emoji">${q.emoji}</span>
       ${q.kanji ? `<span class="q-reading">（${q.kanji}）</span>` : ""}
+      ${senseLabel(q)}
     `;
   } else {
     head.innerHTML = `
       <span class="q-num">第${idx + 1}問</span>
       <span class="q-emoji">${q.emoji}</span>
+      ${senseLabel(q)}
     `;
   }
   content.appendChild(head);
@@ -521,7 +534,7 @@ function renderQuestion(){
   feedback.className = "feedback";
   const explain = document.createElement("div");
   explain.className = "explain";
-  explain.innerHTML = `<b>${q.term}</b>${q.kanji ? `（${q.kanji}）` : ""}：${q.meaning}<br>${exampleHTML(q, false)}`;
+  explain.innerHTML = `<b>${q.term}</b>${q.kanji ? `（${q.kanji}）` : ""}${q.senseTotal > 1 ? `［${q.senseNo}つ目の意味］` : ""}：${q.meaning}<br>${exampleHTML(q, false)}`;
 
   const nextWrap = document.createElement("div");
   nextWrap.className = "next-wrap";
@@ -607,7 +620,7 @@ function renderResult(){
     missed.innerHTML = `<h3>まちがえた和語</h3><ul>${
       missedThisRun.map(i => {
         const q = QUESTIONS[i];
-        return `<li><b>${q.term}</b>${q.meaning}<br><small>${exampleHTML(q, false)}</small></li>`;
+        return `<li><b>${q.term}</b>${q.senseTotal > 1 ? `［${q.senseNo}つ目の意味］` : ""}${q.meaning}<br><small>${exampleHTML(q, false)}</small></li>`;
       }).join("")
     }</ul>`;
     card.appendChild(missed);
