@@ -86,6 +86,7 @@ main{max-width:720px;margin:0 auto;padding:24px 16px 0;}
   padding:14px 16px;margin:2px 0 12px;
 }
 .mode-switch{max-width:720px;margin:14px auto 0;padding:0 16px;display:flex;gap:8px;}
+.set-switch .mode-btn.active{background:var(--ink);border-color:var(--ink);}
 .mode-btn{
   flex:1;padding:10px 8px;border-radius:10px;
   border:1.5px solid var(--border);background:#fff;color:var(--sub);
@@ -149,7 +150,7 @@ footer{text-align:center;color:var(--sub);font-size:0.8rem;padding:30px 16px 10p
 
 <div class="progress-wrap">
   <div class="progress-inner">
-    <span id="progress-label">1問目 / 86問中</span>
+    <span id="progress-label">1問目 / 46問中</span>
     <div class="progress-bar-track">
       <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
     </div>
@@ -158,9 +159,15 @@ footer{text-align:center;color:var(--sub);font-size:0.8rem;padding:30px 16px 10p
 </div>
 
 <header>
-  <h1>和語クイズ</h1>
+  <h1>和語クイズ（和語①）</h1>
   <p id="instruction">例文の中での和語の意味を選んでください。1問ずつ答え合わせをしながら進みます。</p>
 </header>
+
+<div class="mode-switch set-switch" id="set-switch">
+  <button class="mode-btn active" data-set="1">和語①</button>
+  <button class="mode-btn" data-set="2">和語②</button>
+  <button class="mode-btn" data-set="all">全部</button>
+</div>
 
 <div class="mode-switch" id="mode-switch">
   <button class="mode-btn active" data-mode="term">和語 → 意味を選ぶ</button>
@@ -169,7 +176,7 @@ footer{text-align:center;color:var(--sub);font-size:0.8rem;padding:30px 16px 10p
 
 <main id="quiz"></main>
 
-<footer id="footer">全86問 &middot; 和語の意味クイズ</footer>
+<footer id="footer">和語① &middot; 全46問 &middot; 和語の意味クイズ</footer>
 
 <script>
 /*
@@ -181,7 +188,7 @@ footer{text-align:center;color:var(--sub);font-size:0.8rem;padding:30px 16px 10p
   example: 用例。[ ] で囲んだ部分が和語（意味→和語モードでは空欄になる）
   画像を使う場合は images/01.png, images/02.jpg … のように問題番号で置いてください。
 */
-const QUESTIONS = [
+const WAGO1 = [
   { term:"あいづち", kanji:"相槌", emoji:"🗣️", meaning:"相手の話にうなずいてうまく調子を合わせること。", example:"[あいづち]を打つ" },
 
   { term:"あしらう", kanji:"", emoji:"🙋", meaning:"応対する。", example:"面倒な客をうまく[あしらう]" },
@@ -249,9 +256,11 @@ const QUESTIONS = [
   { term:"もたげる", kanji:"擡げる", emoji:"🤔", meaning:"（それまで目立たなかったものが）表面に出てくる。", example:"疑いが頭を[もたげる]" },
 
   { term:"よそおう", kanji:"装う", emoji:"👘", meaning:"身なりや外観を整える。美しく飾る。", example:"豪華な着物で美しく[よそおう]" },
-  { term:"よそおう", kanji:"装う", emoji:"😐", meaning:"見せかける。ふりをする。", example:"本心をさとられないよう平静を[よそおう]" },
+  { term:"よそおう", kanji:"装う", emoji:"😐", meaning:"見せかける。ふりをする。", example:"本心をさとられないよう平静を[よそおう]" }
+];
 
-  /* ===== 覚えておきたい和語② ===== */
+/* ===== 覚えておきたい和語② ===== */
+const WAGO2 = [
   { term:"あえぐ", kanji:"喘ぐ", emoji:"🥵", meaning:"息をきらして苦しそうに呼吸する。", example:"[あえぎ]ながら山道を登る" },
   { term:"あえぐ", kanji:"喘ぐ", emoji:"📉", meaning:"重圧や貧困などに苦しむ。", example:"不況に[あえぐ]" },
 
@@ -317,6 +326,17 @@ const QUESTIONS = [
   { term:"よもや", kanji:"", emoji:"🙅‍♂️", meaning:"万が一にも。いくらなんでも。（その可能性はないという意。）", example:"[よもや]忘れることはあるまい」「[よもや]の展開で敗退する" }
 ];
 
+/* 和語①・和語②をまとめた全問題（set: 1 または 2） */
+const QUESTIONS = [
+  ...WAGO1.map(q => ({ ...q, set:1 })),
+  ...WAGO2.map(q => ({ ...q, set:2 }))
+];
+const SETS = {
+  "1":   { name:"和語①", filter:q => q.set === 1 },
+  "2":   { name:"和語②", filter:q => q.set === 2 },
+  "all": { name:"和語①②", filter:() => true }
+};
+
 /* 複数の意味がある和語に「◯つ目の意味」の番号をつける */
 QUESTIONS.forEach((q, i) => {
   const same = QUESTIONS.filter(x => x.term === q.term);
@@ -369,14 +389,23 @@ const scoreLabel = document.getElementById("score-label");
 const instructionEl = document.getElementById("instruction");
 const modeSwitchEl = document.getElementById("mode-switch");
 
-const allIndices = QUESTIONS.map((_, i) => i);
+const setSwitchEl = document.getElementById("set-switch");
+const titleEl = document.querySelector("header h1");
+let currentSet = "1";
+let allIndices = [];
 let mode = "term";
-let activeIndices = shuffle(allIndices);
+let activeIndices = [];
 let current = 0;
 let score = 0;
 let wrongIndices = [];
 
-document.getElementById("footer").innerHTML = `全${QUESTIONS.length}問 &middot; 和語の意味クイズ`;
+function applySet(){
+  allIndices = QUESTIONS.map((_, i) => i).filter(i => SETS[currentSet].filter(QUESTIONS[i]));
+  titleEl.textContent = `和語クイズ（${SETS[currentSet].name}）`;
+  document.getElementById("footer").innerHTML = `${SETS[currentSet].name} &middot; 全${allIndices.length}問 &middot; 和語の意味クイズ`;
+}
+applySet();
+activeIndices = shuffle(allIndices);
 
 function shuffle(arr){
   const a = arr.slice();
@@ -403,6 +432,16 @@ function resetRun(indices){
   wrongIndices = [];
   renderQuestion();
 }
+
+setSwitchEl.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.set === currentSet) return;
+    currentSet = btn.dataset.set;
+    setSwitchEl.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b === btn));
+    applySet();
+    resetRun(allIndices);
+  });
+});
 
 modeSwitchEl.querySelectorAll(".mode-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -445,7 +484,7 @@ function buildMeaningOptions(idx){
 /* 意味→和語：正しい和語＋ほかの和語3つ（まぎらわしいものは除く） */
 function buildTermOptions(idx){
   const q = QUESTIONS[idx];
-  const terms = [...new Set(QUESTIONS.map(x => x.term))];
+  const terms = [...new Set(allIndices.map(i => QUESTIONS[i].term))];
   const pool = shuffle(terms.filter(t => t !== q.term && !isConflict(q.term, t)));
   const picked = [];
   for (const t of pool) {
@@ -501,7 +540,7 @@ function renderQuestion(){
   head.className = "q-head";
   if (mode === "term") {
     head.innerHTML = `
-      <span class="q-num">第${idx + 1}問</span>
+      <span class="q-num">第${allIndices.indexOf(idx) + 1}問</span>
       <span class="q-term">${q.term}</span>
       <span class="q-emoji">${q.emoji}</span>
       ${q.kanji ? `<span class="q-reading">（${q.kanji}）</span>` : ""}
@@ -509,7 +548,7 @@ function renderQuestion(){
     `;
   } else {
     head.innerHTML = `
-      <span class="q-num">第${idx + 1}問</span>
+      <span class="q-num">第${allIndices.indexOf(idx) + 1}問</span>
       <span class="q-emoji">${q.emoji}</span>
       ${senseLabel(q)}
     `;
